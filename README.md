@@ -1,2 +1,3 @@
-# intersmash-tests
-Intersmash test cases
+# Intersmash Tests
+
+Intersmash test cases.

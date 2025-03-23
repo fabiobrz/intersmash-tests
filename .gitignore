@@ -1,0 +1,7 @@
+/.idea/
+/wildfly-microprofile-reactive-messaging-kafka/target/
+/wildfly-microprofile-reactive-messaging-kafka/tmp/
+/style-config/target/
+/intersmash-tests-core/target/
+/target/
+/test.properties
