@@ -1,0 +1,183 @@
+name: E2E CRC-OKD Manual Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-name:
+        description: The test that will be executed
+        type: string
+        required: true
+        default: '*IT'
+      enable-logs-streaming:
+        description: Enable tested services logs streaming
+        type: boolean
+        required: false
+        default: false
+      xtf-waiting-timeout:
+        description: Set the wait timeout for cluster operations
+        type: number
+        required: false
+        default: 1800000
+
+concurrency:
+  group: single-instance-for-crc-okd-cluster
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # There is some problem with latest version of crc configured with okd preset.
+        # It was not possible to run tests successfully on latest version of crc. See linked issue:
+        # https://github.com/crc-org/crc/issues/4382
+        okd: [ v4.14.0 ]
+        oc: [ 4.14.0 ]
+        crc: [ 2.32.0 ]
+    name: CRC ${{ matrix.crc }} / OKD ${{ matrix.okd }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Install the OpenShift client
+        run: |          
+          wget https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${{ matrix.oc }}/openshift-client-linux.tar.gz
+          mkdir oc-4.14.0
+          tar -xvzf openshift-client-linux.tar.gz -C oc-4.14.0
+          sudo cp oc-4.14.0/oc /usr/local/bin/oc
+          oc version
+      - name: Install required virtualization software
+        run: |
+          sudo apt-get update
+          sudo apt install qemu-kvm libvirt-daemon libvirt-daemon-system
+          # This package may not be present depending on Ubuntu version
+          sudo apt install virtiofsd || true
+          sudo adduser $USER libvirt
+          sudo adduser $USER kvm
+          sudo usermod -a -G libvirt $USER
+      - name: Remove unwanted stuff to free up disk image
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+          sudo docker image prune --all --force
+
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+      - name: Download CRC
+        run: |
+          wget https://developers.redhat.com/content-gateway/file/pub/openshift-v4/clients/crc/${{ matrix.crc }}/crc-linux-amd64.tar.xz
+          tar -xJf crc-linux-amd64.tar.xz
+          sudo cp crc-linux-${{ matrix.crc }}-amd64/crc /usr/local/bin/crc
+      - name: Set the crc config
+        run: |
+          crc config set preset okd
+          crc config set network-mode user
+      - name: Setup CRC
+        run: sudo -su $USER crc setup
+      - name: Start CRC
+        run: |
+          sudo -su $USER crc start | tee crc-start.log
+      - name: Create Intersmash Tests users
+        run: |
+          set +e
+          export TEST_CLUSTER_URL=https://api.crc.testing:6443/
+          export SYSADMIN_USERNAME=kubeadmin
+          export SYSADMIN_PASSWORD_LINE=$(grep -o 'Password:.*-.*' crc-start.log)
+          export SYSADMIN_PASSWORD=$(echo ${SYSADMIN_PASSWORD_LINE:10})
+          
+          echo "kubeadmin credentials: ${SYSADMIN_USERNAME}:${SYSADMIN_PASSWORD}"
+          
+          # note that for some reason it takes a few minutes for this to be loaded by OCP and authentication start working
+          export TEST_ADMIN_USERNAME=admin
+          export TEST_ADMIN_PASSWORD=admin
+          export TEST_USER_USERNAME=imash
+          export TEST_USER_PASSWORD=imash
+          export HTPASSWD_FILE=users.htpasswd
+          
+          htpasswd -c -B -b $HTPASSWD_FILE $TEST_ADMIN_USERNAME $TEST_ADMIN_PASSWORD
+          htpasswd -b $HTPASSWD_FILE $TEST_USER_USERNAME $TEST_USER_PASSWORD
+          
+          cat $HTPASSWD_FILE
+          
+          oc login --insecure-skip-tls-verify "${TEST_CLUSTER_URL}" -u "${SYSADMIN_USERNAME}" -p "${SYSADMIN_PASSWORD}"
+          export SYSADMIN_TOKEN=$(oc whoami -t)
+          echo "kubeadmin token: ${SYSADMIN_TOKEN}"
+          oc create secret generic htpass-secret-2 --from-file=htpasswd=$HTPASSWD_FILE -n openshift-config
+          oc patch OAuth cluster -p '{"spec": {"identityProviders": [{"htpasswd": {"fileData": {"name": "htpass-secret-2"}},"mappingMethod": "claim","name": "my_htpasswd_provider","type": "HTPasswd"}]}}' --type=merge
+          
+          # wait until authentication operator updates auth
+          sleep 45 # wait until operator notices changes
+          counter=0
+          while [ "$(oc get clusteroperator authentication -o custom-columns=STATUS:.status.conditions[1].status | tail -1)" == "True" ]; do
+            sleep 5
+            echo Waiting for authentication operator to finish processing
+            ((counter=counter+1))
+            if [ "$counter" == "200" ]; then
+              echo "Timeout waiting for authentication operator."
+              exit 1
+            fi
+          done
+          echo "Logging the kubeadmin user out..."
+          oc logout
+          
+          echo "Attempting oc login with admin user multiple times..."
+          counter=0
+          until [[ "$(oc login --insecure-skip-tls-verify ${TEST_CLUSTER_URL} -u ${TEST_ADMIN_USERNAME} -p ${TEST_ADMIN_PASSWORD})" =~ "Login successful" ]] || [[ counter++ -ge 80 ]]
+          do
+            sleep 5
+          done
+          export ADMIN_TOKEN=$(oc whoami -t)
+          echo "oc login succeeded with admin user, token is ${ADMIN_TOKEN}"
+          
+          echo "Attempting oc login with test user multiple times..."
+          counter=0
+          until [[ "$(oc login --insecure-skip-tls-verify ${TEST_CLUSTER_URL} -u ${TEST_USER_USERNAME} -p ${TEST_USER_PASSWORD})" =~ "Login successful" ]] || [[ counter++ -ge 80 ]]
+          do
+            sleep 5
+          done
+          export USER_TOKEN=$(oc whoami -t)
+          echo "oc login succeeded with test user, token is ${USER_TOKEN}"
+          
+          echo "Attempting oc login with kubeadmin again, to set cluster-admin privileges for admin user..."
+          oc login --token="${SYSADMIN_TOKEN}" --server="${TEST_CLUSTER_URL}"
+          echo "Setting cluster-admin privileges for admin user..."
+          oc adm policy add-cluster-role-to-user cluster-admin ${TEST_ADMIN_USERNAME}
+          echo "Configuring tokens to never expire..."
+          oc patch OAuthClient openshift-challenging-client -p '{"accessTokenMaxAgeSeconds": 0,"apiVersion": "oauth.openshift.io/v1","grantMethod": "auto","kind": "OAuthClient","respondWithChallenges": true}' --type=merge
+  
+
+          echo "Generating test.properties file contents..."          
+          cat >>test.properties <<EOL
+          xtf.openshift.url=${TEST_CLUSTER_URL}
+          xtf.openshift.namespace=imash-tests
+          xtf.bm.namespace=imash-tests-bm
+          xtf.junit.clean_openshift=true
+          xtf.openshift.admin.username=${TEST_ADMIN_USERNAME}
+          xtf.openshift.admin.password=${TEST_ADMIN_PASSWORD}
+          xtf.openshift.admin.token=${ADMIN_TOKEN}
+          xtf.openshift.master.username=${TEST_USER_USERNAME}
+          xtf.openshift.master.password=${TEST_USER_PASSWORD}
+          xtf.openshift.master.token=${USER_TOKEN}
+          xtf.openshift.version=${{ matrix.oc }}
+          EOL
+          cat test.properties
+      - name: Run tests on OpenShift, with community deliverables and applications
+        timeout-minutes: 120
+        run: |
+          mvn clean verify -Dit.test=${{ inputs.test-name }} -Dfailsafe.failIfNoSpecifiedTests=false -B -Popenshift -Dxtf.log.streaming.enabled=${{ inputs.enable-logs-streaming }} -Dxtf.waiting.timeout=${{ inputs.xtf-waiting-timeout }}
+      - name: Store test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openshift-e2e-tests-artifacts
+          path: |
+            '${{ github.workspace }}/**/failsafe-reports/*.*'
+            '${{ github.workspace }}/**/*.log'
