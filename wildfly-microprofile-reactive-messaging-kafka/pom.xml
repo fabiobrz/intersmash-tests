@@ -13,11 +13,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jboss.intersmash.applications</groupId>
-            <artifactId>application-provider</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.jboss.intersmash</groupId>
             <artifactId>intersmash-provisioners</artifactId>
             <scope>test</scope>
@@ -28,5 +23,21 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

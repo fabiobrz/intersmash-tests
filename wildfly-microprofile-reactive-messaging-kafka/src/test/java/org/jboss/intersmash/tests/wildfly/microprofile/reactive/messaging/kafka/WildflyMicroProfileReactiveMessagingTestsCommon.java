@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
  *
  * @tpTestCaseDetails This class serves only as a common point for extension for the following test cases:
  * <br>
- * {@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredTests}
+ * {@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredIT}
  */
 public abstract class WildflyMicroProfileReactiveMessagingTestsCommon {
 

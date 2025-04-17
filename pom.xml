@@ -35,9 +35,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/Intersmash/intersmash-applications.git</connection>
-        <developerConnection>scm:git:ssh://github.com:Intersmash/intersmash-applications.git</developerConnection>
-        <url>http://github.com/Intersmash/intersmash-applications/tree/main</url>
+        <connection>scm:git:git://github.com/Intersmash/intersmash-tests.git</connection>
+        <developerConnection>scm:git:ssh://github.com:Intersmash/intersmash-tests.git</developerConnection>
+        <url>http://github.com/Intersmash/intersmash-tests/tree/main</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -47,12 +47,17 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <version.intersmash>0.0.3.Beta3-SNAPSHOT</version.intersmash>
-        <version.intersmash-applications>0.0.1-SNAPSHOT</version.intersmash-applications>
         <version.junit-jupiter>5.11.1</version.junit-jupiter>
         <version.rest-assured>5.5.1</version.rest-assured>
-        <version.maven-failsafe-plugin>3.5.2</version.maven-failsafe-plugin>
         <version.junit-platform-launcher>1.11.3</version.junit-platform-launcher>
         <version.spotless-maven-plugin>2.44.3</version.spotless-maven-plugin>
+        <version.commons-lang3>3.17.0</version.commons-lang3>
+        <version.system-stubs-core>2.1.7</version.system-stubs-core>
+        <version.slf4j>2.0.17</version.slf4j>
+        <!-- Property to identify the tested WildFly applications target distribution (i.e. WildFly/JBoss EAP/JBoss EAP XP) -->
+        <intersmash.test.wildfly-target-distribution>community</intersmash.test.wildfly-target-distribution>
+        <!-- Property to identify the tested WildFly applications build stream (i.e. WildFly/JBoss EAP 8.1.x/JBoss EAP XP 6.x) -->
+        <intersmash.test.wildfly-build-stream>wildfly-latest</intersmash.test.wildfly-build-stream>
     </properties>
 
     <modules>
@@ -65,29 +70,25 @@
         <dependencies>
             <dependency>
                 <groupId>org.jboss.intersmash</groupId>
-                <artifactId>intersmash-core</artifactId>
-                <version>${version.intersmash}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jboss.intersmash</groupId>
                 <artifactId>intersmash-provisioners</artifactId>
                 <version>${version.intersmash}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jboss.intersmash.applications</groupId>
-                <artifactId>application-provider</artifactId>
-                <version>${version.intersmash-applications}</version>
             </dependency>
             <dependency>
                 <groupId>org.jboss.intersmash.tests</groupId>
                 <artifactId>intersmash-tests-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${version.commons-lang3}</version>
+            </dependency>
 
             <dependency>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${version.maven-failsafe-plugin}</version>
+                <groupId>uk.org.webcompere</groupId>
+                <artifactId>system-stubs-jupiter</artifactId>
+                <version>${version.system-stubs-core}</version>
+                <scope>test</scope>
             </dependency>
 
             <!-- JUnit 5 Jupiter -->
@@ -121,6 +122,13 @@
                 <version>${version.rest-assured}</version>
                 <scope>test</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${version.slf4j}</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -145,11 +153,30 @@
             <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${version.failsafe.plugin}</version>
+                    <executions>
+                        <execution>
+                            <id>integration-test</id>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
@@ -195,11 +222,103 @@
 
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- WildFly target distribution -->
+                    <systemPropertyVariables>
+                        <wildfly-target-distribution>${intersmash.test.wildfly-target-distribution}</wildfly-target-distribution>
+                        <wildfly-build-stream>${intersmash.test.wildfly-build-stream}</wildfly-build-stream>
+                    </systemPropertyVariables>
+                    <!-- Excluded groups -->
+                    <excludedGroups>openshift</excludedGroups>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>k8s</id>
+            <!-- default -->
+            <properties/>
+        </profile>
+        <profile>
+            <id>openshift</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <xtf.global_test_properties.path>${project.basedir}/global-test.openshift.properties</xtf.global_test_properties.path>
+                            </systemPropertyVariables>
+                            <!-- Exclude Kubernetes tests, when the profile for running tests on OpenShift is enabled  -->
+                            <excludedGroups>k8s</excludedGroups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- Configuration settings for testing JBoss EAP 8.1.x -->
+            <id>wildfly.build-stream.jboss-eap.81</id>
+            <properties>
+                <!-- set the WildFly target distribution to JBoss EAP -->
+                <intersmash.test.wildfly-target-distribution>jboss-eap</intersmash.test.wildfly-target-distribution>
+                <!-- set the WildFly build stream to JBoss EAP 8.1.x -->
+                <intersmash.test.wildfly-build-stream>jboss-eap.81</intersmash.test.wildfly-build-stream>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <!-- JBoss EAP 8.1.x tests are only executed on OpenShift -->
+                                <xtf.global_test_properties.path>global-test.eap-81.openshift.properties</xtf.global_test_properties.path>
+                            </systemPropertyVariables>
+                            <!-- Exclude tests that shouldn't be executed when dealing JBoss EAP, i.e. Bootable Jar tests
+                            (Bootable JAR is only available with WildFLy or JBoss EAP XP) -->
+                            <excludedGroups>k8s,requires-wildfly-bootable-jar</excludedGroups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- Configuration settings for testing JBoss EAP XP 6.x -->
+            <id>wildfly.build-stream.jboss-eap-xp.6</id>
+            <properties>
+                <!-- set the WildFly target distribution to JBoss EAP -->
+                <intersmash.test.wildfly-target-distribution>jboss-eap-xp</intersmash.test.wildfly-target-distribution>
+                <!-- set the WildFly build stream to JBoss EAP XP 6.x -->
+                <intersmash.test.wildfly-build-stream>jboss-eap-xp.6</intersmash.test.wildfly-build-stream>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <!-- JBoss EAP XP 6.x tests are only executed on OpenShift -->
+                                <xtf.global_test_properties.path>global-test.eap-xp6.openshift.properties</xtf.global_test_properties.path>
+                            </systemPropertyVariables>
+                            <!-- Exclude Kubernetes tests, when the profile for running tests on OpenShift is enabled  -->
+                            <excludedGroups>k8s</excludedGroups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <repositories>
         <repository>

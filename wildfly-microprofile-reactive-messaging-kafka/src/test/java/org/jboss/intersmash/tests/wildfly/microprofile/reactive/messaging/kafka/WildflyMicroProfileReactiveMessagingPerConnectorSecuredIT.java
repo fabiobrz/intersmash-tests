@@ -15,6 +15,7 @@
 */
 package org.jboss.intersmash.tests.wildfly.microprofile.reactive.messaging.kafka;
 
+import cz.xtf.junit5.listeners.ProjectCreator;
 import org.jboss.intersmash.annotations.Intersmash;
 import org.jboss.intersmash.annotations.Service;
 import org.jboss.intersmash.annotations.ServiceProvisioner;
@@ -23,7 +24,9 @@ import org.jboss.intersmash.provision.openshift.OpenShiftProvisioner;
 import org.jboss.intersmash.provision.openshift.WildflyImageOpenShiftProvisioner;
 import org.jboss.intersmash.tests.junit.annotations.EapXp6Test;
 import org.jboss.intersmash.tests.junit.annotations.KafkaTest;
+import org.jboss.intersmash.tests.junit.annotations.OpenShiftTest;
 import org.jboss.intersmash.tests.junit.annotations.WildflyTest;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * AMQ Streams interoperability tests.
@@ -44,11 +47,13 @@ import org.jboss.intersmash.tests.junit.annotations.WildflyTest;
 @KafkaTest
 @WildflyTest
 @EapXp6Test
+@OpenShiftTest
+@ExtendWith(ProjectCreator.class)
 @Intersmash({
 		@Service(KafkaMicroProfileReactiveMessagingApplication.class),
 		@Service(WildflyMicroProfileReactiveMessagingPerConnectorSecuredApplication.class)
 })
-public class WildflyMicroProfileReactiveMessagingPerConnectorSecuredTests
+public class WildflyMicroProfileReactiveMessagingPerConnectorSecuredIT
 		extends WildflyMicroProfileReactiveMessagingTestsCommon {
 	@ServiceUrl(WildflyMicroProfileReactiveMessagingPerConnectorSecuredApplication.class)
 	private String eapRouteUrl;

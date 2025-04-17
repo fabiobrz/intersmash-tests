@@ -32,7 +32,7 @@ import org.jboss.intersmash.application.operator.KafkaOperatorApplication;
 
 /**
  * Provides its provisioner access to the Kafka operator model instance which is required by:
- *     <li>{@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredTests}</li>
+ *     <li>{@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredIT}</li>
  * </ul>
  */
 public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOperatorApplication, OpenShiftApplication {

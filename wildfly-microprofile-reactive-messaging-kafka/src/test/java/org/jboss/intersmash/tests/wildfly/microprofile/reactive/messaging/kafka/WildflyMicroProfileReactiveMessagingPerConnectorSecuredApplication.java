@@ -25,11 +25,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.jboss.intersmash.IntersmashConfig;
 import org.jboss.intersmash.application.input.BuildInput;
 import org.jboss.intersmash.application.input.BuildInputBuilder;
 import org.jboss.intersmash.application.openshift.WildflyImageOpenShiftApplication;
-import org.jboss.intersmash.applications.ApplicationProvider;
-import org.jboss.intersmash.applications.wildfly.WildflyApplicationConfiguration;
+import org.jboss.intersmash.tests.wildfly.WildflyApplicationConfiguration;
 
 /**
  * Set up an EAP8 application that contains deployment which utilizes Reactive Messaging with a connection to a remote
@@ -42,7 +43,7 @@ import org.jboss.intersmash.applications.wildfly.WildflyApplicationConfiguration
  * uses MicroProfile Reactive Messaging with a connection to a remote AMQ Streams (Kafka) instance.
  * <p>
  * Connections are performed both as not secured (plaintext) and secured via SSL with
- * SSLContext configured via Elytron too, {@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredTests}.
+ * SSLContext configured via Elytron too, {@link WildflyMicroProfileReactiveMessagingPerConnectorSecuredIT}.
  * <br>
  * Regarding the SSL connections, the Kafka connector on the WildFly/EAP XP side (client with respect to Kafka) is
  * secured via MicroProfile Config properties that automatically set the Elytron SSL client context.
@@ -63,8 +64,11 @@ public class WildflyMicroProfileReactiveMessagingPerConnectorSecuredApplication
 
 	public WildflyMicroProfileReactiveMessagingPerConnectorSecuredApplication() {
 		// Set up the Reactive-messaging deployment.
-		buildInput = new BuildInputBuilder().archive(
-				ApplicationProvider.wildflyMicroprofileReactiveMessagingKafkaProvisionedServerPath()).build();
+		String applicationDir = "wildfly/microprofile-reactive-messaging-kafka";
+		buildInput = new BuildInputBuilder()
+				.uri(IntersmashConfig.deploymentsRepositoryUrl())
+				.ref(IntersmashConfig.deploymentsRepositoryRef())
+				.build();
 
 		clientSecret = OpenShifts.master().getSecret("amq-streams-cluster-ca-cert");
 		clientSecret.getMetadata().setName(APP_NAME + "-amq-streams-cluster-ca-cert-secret");
@@ -93,6 +97,18 @@ public class WildflyMicroProfileReactiveMessagingPerConnectorSecuredApplication
 				new EnvVarBuilder().withName("MP_MESSAGING_INCOMING_SSLFROM_WILDFLY_ELYTRON_SSL_CONTEXT")
 						.withValue(
 								CLIENT_SSL_CONTEXT_NAME)
+						.build());
+
+		environmentVariables.add(
+				new EnvVarBuilder().withName("MAVEN_S2I_ARTIFACT_DIRS")
+						.withValue(applicationDir + "/target")
+						.build());
+
+		final String mavenAdditionalArgs = generateAdditionalMavenArgs()
+				.concat(" -pl " + applicationDir + " -am");
+		environmentVariables.add(
+				new EnvVarBuilder().withName("MAVEN_ARGS_APPEND")
+						.withValue(mavenAdditionalArgs)
 						.build());
 	}
 

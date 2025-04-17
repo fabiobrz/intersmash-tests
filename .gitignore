@@ -5,3 +5,4 @@
 /intersmash-tests-core/target/
 /target/
 /test.properties
+/wildfly-microprofile-reactive-messaging-kafka/log/
