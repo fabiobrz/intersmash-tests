@@ -64,6 +64,7 @@
         <module>style-config</module>
         <module>intersmash-tests-core</module>
         <module>wildfly-microprofile-reactive-messaging-kafka</module>
+        <module>wildfly-elytron-oidc-client-keycloak</module>
     </modules>
 
     <dependencyManagement>
