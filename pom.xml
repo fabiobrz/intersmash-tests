@@ -56,14 +56,13 @@
         <version.slf4j>2.0.17</version.slf4j>
         <!-- Property to identify the tested WildFly applications target distribution (i.e. WildFly/JBoss EAP/JBoss EAP XP) -->
         <intersmash.test.wildfly-target-distribution>community</intersmash.test.wildfly-target-distribution>
-        <!-- Property to identify the tested WildFly applications build stream (i.e. WildFly/JBoss EAP 8.1.x/JBoss EAP XP 6.x) -->
+        <!-- Property to identify the tested WildFly applications build stream (i.e. WildFly/JBoss EAP 8.1.x/JBoss EAP XP 5.x) -->
         <intersmash.test.wildfly-build-stream>wildfly-latest</intersmash.test.wildfly-build-stream>
     </properties>
 
     <modules>
         <module>style-config</module>
         <module>intersmash-tests-core</module>
-        <module>wildfly-microprofile-reactive-messaging-kafka</module>
         <module>wildfly-elytron-oidc-client-keycloak</module>
     </modules>
 
@@ -244,6 +243,18 @@
 
     <profiles>
         <profile>
+            <id>all-modules</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>style-config</module>
+                <module>intersmash-tests-core</module>
+                <module>wildfly-microprofile-reactive-messaging-kafka</module>
+                <module>wildfly-elytron-oidc-client-keycloak</module>
+            </modules>
+        </profile>
+        <profile>
             <id>k8s</id>
             <!-- default -->
             <properties/>
@@ -294,14 +305,20 @@
             </build>
         </profile>
         <profile>
-            <!-- Configuration settings for testing JBoss EAP XP 6.x -->
-            <id>wildfly.build-stream.jboss-eap-xp.6</id>
+            <!-- Configuration settings for testing JBoss EAP XP 5.x -->
+            <id>wildfly.build-stream.jboss-eap-xp.5</id>
             <properties>
                 <!-- set the WildFly target distribution to JBoss EAP -->
                 <intersmash.test.wildfly-target-distribution>jboss-eap-xp</intersmash.test.wildfly-target-distribution>
-                <!-- set the WildFly build stream to JBoss EAP XP 6.x -->
-                <intersmash.test.wildfly-build-stream>jboss-eap-xp.6</intersmash.test.wildfly-build-stream>
+                <!-- set the WildFly build stream to JBoss EAP XP 5.x -->
+                <intersmash.test.wildfly-build-stream>jboss-eap-xp.5</intersmash.test.wildfly-build-stream>
             </properties>
+            <modules>
+                <module>style-config</module>
+                <module>intersmash-tests-core</module>
+                <module>wildfly-microprofile-reactive-messaging-kafka</module>
+                <module>wildfly-elytron-oidc-client-keycloak</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>
@@ -309,8 +326,8 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
                             <systemPropertyVariables>
-                                <!-- JBoss EAP XP 6.x tests are only executed on OpenShift -->
-                                <xtf.global_test_properties.path>global-test.eap-xp6.openshift.properties</xtf.global_test_properties.path>
+                                <!-- JBoss EAP XP 5.x tests are only executed on OpenShift -->
+                                <xtf.global_test_properties.path>global-test.eap-xp5.openshift.properties</xtf.global_test_properties.path>
                             </systemPropertyVariables>
                             <!-- Exclude Kubernetes tests, when the profile for running tests on OpenShift is enabled  -->
                             <excludedGroups>k8s</excludedGroups>

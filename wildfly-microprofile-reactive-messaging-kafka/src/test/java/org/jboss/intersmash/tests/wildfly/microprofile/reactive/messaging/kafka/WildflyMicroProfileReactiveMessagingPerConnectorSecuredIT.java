@@ -23,7 +23,7 @@ import org.jboss.intersmash.annotations.ServiceProvisioner;
 import org.jboss.intersmash.annotations.ServiceUrl;
 import org.jboss.intersmash.provision.openshift.OpenShiftProvisioner;
 import org.jboss.intersmash.provision.openshift.WildflyImageOpenShiftProvisioner;
-import org.jboss.intersmash.tests.junit.annotations.EapXp6Test;
+import org.jboss.intersmash.tests.junit.annotations.EapXp5Test;
 import org.jboss.intersmash.tests.junit.annotations.KafkaTest;
 import org.jboss.intersmash.tests.junit.annotations.OpenShiftTest;
 import org.jboss.intersmash.tests.junit.annotations.WildflyTest;
@@ -48,7 +48,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  */
 @KafkaTest
 @WildflyTest
-@EapXp6Test
+@EapXp5Test
 @OpenShiftTest
 @ExtendWith(ProjectCreator.class)
 @Intersmash({

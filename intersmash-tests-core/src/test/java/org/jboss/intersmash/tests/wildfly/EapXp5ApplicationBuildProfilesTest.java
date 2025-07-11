@@ -27,14 +27,14 @@ import uk.org.webcompere.systemstubs.properties.SystemProperties;
  * documented WildFly application build profiles.
  */
 @ExtendWith(SystemStubsExtension.class)
-public class EapXpApplicationBuildProfilesTest {
+public class EapXp5ApplicationBuildProfilesTest {
 	@SystemStub
 	private SystemProperties systemProperties;
 
 	@Test
 	void generatedMavenArgsIncludeValidProfiles() {
 		// Arrange
-		systemProperties.set("wildfly-build-stream", "jboss-eap-xp.6");
+		systemProperties.set("wildfly-build-stream", "jboss-eap-xp.5");
 
 		// Act
 		WildflyApplicationConfiguration app = new WildflyApplicationConfiguration() {
@@ -43,6 +43,6 @@ public class EapXpApplicationBuildProfilesTest {
 
 		// Assert
 		Assertions.assertTrue(mavenArgs.contains(" -Pwildfly-target-distribution.jboss-eap-xp"));
-		Assertions.assertTrue(mavenArgs.contains(" -Pwildfly-build-stream.jboss-eap-xp.6"));
+		Assertions.assertTrue(mavenArgs.contains(" -Pwildfly-build-stream.jboss-eap-xp.5"));
 	}
 }

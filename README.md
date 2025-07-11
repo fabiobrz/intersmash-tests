@@ -70,15 +70,15 @@ file in order to configure the Intersmash framework, so that JBoss EAP 8.1.x clo
 Charts -  will be used during the test execution.
 
 
-- `wildfly.build-stream.jboss-eap-xp.6`
+- `wildfly.build-stream.jboss-eap-xp.5`
 
 When this profile is enabled, _application descriptors_ that implement the
 [WildflyApplicationConfiguration](./intersmash-tests-core/src/main/java/org/jboss/intersmash/tests/wildfly/WildflyApplicationConfiguration.java)
 interface will generate additional Maven args that will be forwarded to a remote s2i build, so that the tested
 application will be built accordingly.
 Additionally, the Maven Failsafe Plugin will use the
-[global-test.eap-xp6.openshift.properties](./global-test.eap-xp6.openshift.properties)
-file in order to configure the Intersmash framework, so that JBoss EAP XP 6.x cloud deliverables - e.g.: images and Helm
+[global-test.eap-xp5.openshift.properties](./global-test.eap-xp5.openshift.properties)
+file in order to configure the Intersmash framework, so that JBoss EAP XP 5.x cloud deliverables - e.g.: images and Helm
 Charts -  will be used during the test execution.
 
 ## Modules
