@@ -3,6 +3,7 @@ package org.jboss.intersmash.tests.wildfly.elytron.oidc.client.keycloak;
 import cz.xtf.core.openshift.OpenShifts;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import org.jboss.intersmash.IntersmashConfig;
 import org.jboss.intersmash.application.input.BuildInput;
 import org.jboss.intersmash.application.input.BuildInputBuilder;
 import org.jboss.intersmash.application.openshift.WildflyImageOpenShiftApplication;
@@ -28,8 +29,8 @@ public class WildflyWithElytronOidcClientApplication
 
 		String applicationDir = "wildfly/elytron-oidc-client-keycloak";
 		buildInput = new BuildInputBuilder()
-				.uri("https://github.com/Intersmash/intersmash-applications.git")
-				.ref("main")
+				.uri(IntersmashConfig.deploymentsRepositoryUrl())
+				.ref(IntersmashConfig.deploymentsRepositoryRef())
 				.build();
 		environmentVariables.add(new EnvVarBuilder()
 				.withName("SSO_APP_SERVICE")
