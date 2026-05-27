@@ -15,18 +15,20 @@
 */
 package org.jboss.intersmash.tests.wildfly.microprofile.reactive.messaging.kafka;
 
-import io.strimzi.api.kafka.model.CertificateAuthority;
-import io.strimzi.api.kafka.model.CertificateAuthorityBuilder;
-import io.strimzi.api.kafka.model.Kafka;
-import io.strimzi.api.kafka.model.KafkaBuilder;
-import io.strimzi.api.kafka.model.KafkaTopic;
-import io.strimzi.api.kafka.model.KafkaUser;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
-import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.strimzi.api.kafka.model.common.CertificateAuthority;
+import io.strimzi.api.kafka.model.common.CertificateAuthorityBuilder;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.jboss.intersmash.application.openshift.OpenShiftApplication;
 import org.jboss.intersmash.application.operator.KafkaOperatorApplication;
 
@@ -127,6 +129,11 @@ public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOpera
 	public List<KafkaUser> getUsers() {
 		// We don't need any user for our tests.
 		return null;
+	}
+
+	@Override
+	public List<KafkaNodePool> getNodePools() {
+		return List.of();
 	}
 
 	@Override
