@@ -22,11 +22,15 @@ import java.util.Map;
 
 import io.strimzi.api.kafka.model.common.CertificateAuthority;
 import io.strimzi.api.kafka.model.common.CertificateAuthorityBuilder;
+import io.strimzi.api.kafka.model.kafka.EphemeralStorageBuilder;
+import io.strimzi.api.kafka.model.kafka.KRaftMetadataStorage;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolBuilder;
+import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.jboss.intersmash.application.openshift.OpenShiftApplication;
@@ -41,26 +45,62 @@ import org.jboss.intersmash.application.operator.KafkaOperatorApplication;
 public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOperatorApplication, OpenShiftApplication {
 	public static final String APP_NAME = "amq-streams";
 
-	private static final String KAFKA_VERSION = "3.8.0";
-	private static final String KAFKA_INTER_BROKER_PROTOCOL_VERSION = "3.8";
+	private static final String KAFKA_VERSION = KafkaOperatorApplication.KAFKA_VERSION;
+	private static final String KAFKA_METADATA_VERSION = KafkaOperatorApplication.METADATA_VERSION;
 	private static final int KAFKA_INSTANCE_NUM = 3;
-	private static final int TOPIC_RECONCILIATION_INTERVAL_SECONDS = 90;
-	private static final long USER_RECONCILIATION_INTERVAL_SECONDS = 120L;
+	private static final int TOPIC_RECONCILIATION_INTERVAL_SECONDS = 90_000;
+	private static final long USER_RECONCILIATION_INTERVAL_SECONDS = 120_000L;
 
 	public static final int KAFKA_PLAINTEXT_PORT = 9092;
 	public static final int KAFKA_SSL_PORT = 9093;
 
 	private final Kafka kafka;
+	private final List<KafkaNodePool> kafkaNodePools;
 
 	public KafkaMicroProfileReactiveMessagingApplication() {
-		Map<String, Object> config = new HashMap<>();
-		config.put("inter.broker.protocol.version", KAFKA_INTER_BROKER_PROTOCOL_VERSION);
-		config.put("offsets.topic.replication.factor", KAFKA_INSTANCE_NUM);
-		config.put("transaction.state.log.min.isr", KAFKA_INSTANCE_NUM);
-		config.put("transaction.state.log.replication.factor", KAFKA_INSTANCE_NUM);
+		// first let's define KafkaNodePool's since we're in KRaft mode here
+		// Kafka in KRaft mode ephemeral with both controller and broker node pools
+		kafkaNodePools = List.of(
+			new KafkaNodePoolBuilder()
+				.withNewMetadata()
+				.withName("controller")
+				.withLabels(Map.of(KafkaOperatorApplication.STRIMZI_IO_KAFKA_LABEL_CLUSTER, APP_NAME))
+				.endMetadata()
+				.withNewSpec()
+				.withReplicas(KAFKA_INSTANCE_NUM)
+				.withRoles(ProcessRoles.CONTROLLER)
+				.withStorage(
+						new EphemeralStorageBuilder()
+								.withId(0)
+								.withKraftMetadata(KRaftMetadataStorage.SHARED)
+								.build()
+				)
+				.endSpec()
+				.build(),
+			new KafkaNodePoolBuilder()
+				.withNewMetadata()
+				.withName("broker")
+				.withLabels(Map.of(KafkaOperatorApplication.STRIMZI_IO_KAFKA_LABEL_CLUSTER, APP_NAME))
+				.endMetadata()
+				.withNewSpec()
+				.withReplicas(KAFKA_INSTANCE_NUM)
+				.withRoles(ProcessRoles.BROKER)
+				.withStorage(
+						new EphemeralStorageBuilder()
+								.withId(0)
+								.withKraftMetadata(KRaftMetadataStorage.SHARED)
+								.build()
+				)
+				.endSpec()
+				.build());
 
+		Map<String, Object> config = new HashMap<>();
 		config.put("default.replication.factor", KAFKA_INSTANCE_NUM);
 		config.put("min.insync.replicas", 2);
+		config.put("offsets.topic.replication.factor", KAFKA_INSTANCE_NUM);
+		config.put("transaction.state.log.min.isr", 2);
+		config.put("transaction.state.log.replication.factor", KAFKA_INSTANCE_NUM);
+		//config.put("inter.broker.protocol.version", KAFKA_INTER_BROKER_PROTOCOL_VERSION);
 
 		// We need this configuration due to the tests that sets custom partition number for the message in topic.
 		config.put("num.partitions", 2);
@@ -90,12 +130,17 @@ public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOpera
 
 		// Initialize AMQ Streams Kafka resource
 		kafka = new KafkaBuilder()
-				.withNewMetadata().withName(APP_NAME).endMetadata()
+				.withNewMetadata().withName(APP_NAME)
+				.withAnnotations(Map.of(
+						KafkaOperatorApplication.STRIMZI_IO_KAFKA_LABEL_NODE_POOLS, "enabled",
+						KafkaOperatorApplication.STRIMZI_IO_KAFKA_LABEL_KRAFT, "enabled"
+				))
+				.endMetadata()
 				.withNewSpec()
 				.withNewEntityOperator()
-				.withNewTopicOperator().withReconciliationIntervalSeconds(TOPIC_RECONCILIATION_INTERVAL_SECONDS)
+				.withNewTopicOperator().withReconciliationIntervalMs(TOPIC_RECONCILIATION_INTERVAL_SECONDS * 1000L)
 				.endTopicOperator()
-				.withNewUserOperator().withReconciliationIntervalSeconds(USER_RECONCILIATION_INTERVAL_SECONDS).endUserOperator()
+				.withNewUserOperator().withReconciliationIntervalMs(USER_RECONCILIATION_INTERVAL_SECONDS * 1000L).endUserOperator()
 				.endEntityOperator()
 				.withNewKafka()
 				.withConfig(config)
@@ -103,11 +148,8 @@ public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOpera
 				.withReplicas(KAFKA_INSTANCE_NUM)
 				.withNewEphemeralStorage().endEphemeralStorage()
 				.withVersion(KAFKA_VERSION)
+				.withMetadataVersion(KAFKA_METADATA_VERSION)
 				.endKafka()
-				.withNewZookeeper()
-				.withReplicas(KAFKA_INSTANCE_NUM)
-				.withNewEphemeralStorage().endEphemeralStorage()
-				.endZookeeper()
 				.withClusterCa(ca)
 				.endSpec()
 				.build();
@@ -133,7 +175,7 @@ public class KafkaMicroProfileReactiveMessagingApplication implements KafkaOpera
 
 	@Override
 	public List<KafkaNodePool> getNodePools() {
-		return List.of();
+		return kafkaNodePools;
 	}
 
 	@Override
